@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/url"
 	"reflect"
@@ -18,7 +19,9 @@ type Socket struct {
 	conn      *websocket.Conn
 	handler   *Handler
 	wLock     *sync.Mutex
-	//interrupt *chan os.Signal
+
+	//为了保证所有 goroutine 都可以优雅退出，需要引入 WaitGroup。陪孩子挽回，暂时先不做...
+	//waitGroup *sync.WaitGroup
 }
 
 func (s *Socket) Connect(uid string, roomId int) bool {
@@ -27,18 +30,18 @@ func (s *Socket) Connect(uid string, roomId int) bool {
 	s.roomId = roomId
 
 	u := url.URL{Scheme: "ws", Host: host, Path: "/" + path}
-	log.Printf("connecting to %s", u.String())
+	plog(fmt.Sprintf("%s connecting to %s\n", s.uid, u.String()))
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		log.Fatal("connect error:", err)
+		log.Fatal("%s connect error:", s.uid, err)
 		return false
 	}
 
 	s.wLock = new(sync.Mutex)
 	s.conn = c
 	s.onMessage()
-	go s.heartBeat()
+	s.heartBeat()
 	return true
 }
 
@@ -48,10 +51,12 @@ func (s *Socket) onMessage() {
 		for {
 			_, message, err := s.conn.ReadMessage()
 			if err != nil {
-				log.Println("read:", err)
+				//log.Println("read:", err)
+				plog(fmt.Sprintf("%s reade error:", s.uid, err))
 				return
 			}
-			log.Printf("recv+: %s", message)
+			//log.Printf("%s recv+: %s", s.uid, message)
+			plog(fmt.Sprintf("%s recv+: %s", s.uid, message))
 
 			var ptinfo []proto
 			json.Unmarshal(message, &ptinfo)
@@ -68,7 +73,8 @@ func (s *Socket) onMessage() {
 
 			case 3:
 				//OP_HEARTBEAT_REPLY
-				log.Println("pong uid:", s.uid)
+				//log.Println("uid pong:", s.uid)
+				plog(fmt.Sprintf("%s pong:", s.uid))
 
 			case 5:
 				//OP_SEND_SMS_REPLY
@@ -77,6 +83,7 @@ func (s *Socket) onMessage() {
 				//统计获取到的数量
 
 				//log.Println(p)
+				s.handler.RNum += len(ptinfo)
 			case 8:
 				//OP_AUTH_REPLY
 
@@ -93,26 +100,29 @@ func (s *Socket) onMessage() {
 
 func (s *Socket) heartBeat() {
 
-	ticker := time.NewTicker(time.Second * 2)
-	defer ticker.Stop()
+	go func() {
+		ticker := time.NewTicker(time.Second * time.Duration(heartHeat))
+		defer ticker.Stop()
 
-	for {
-		select {
-		case _ = <-ticker.C:
+		for {
+			select {
+			case _ = <-ticker.C:
 
-			buffer, err := formatHeartMessage()
-			err = s.WriteMessage(buffer)
-			log.Println("ping uid:", s.uid)
-			if err != nil {
-				//log.Println("heart error", err)
-				s.close()
-				//TODO 通知主进程异常
-				return
+				buffer, err := formatHeartMessage()
+				err = s.WriteMessage(buffer)
+				//log.Println("uid ping:", s.uid)
+				plog(fmt.Sprintf("%s ping:", s.uid))
+				if err != nil {
+					//log.Println("heart error", err)
+					s.close()
+					//TODO 通知主进程异常
+					return
+				}
+				//case getSignal := <-s.interrupt:
+				//return
 			}
-			//case getSignal := <-s.interrupt:
-			return
 		}
-	}
+	}()
 
 }
 
@@ -121,7 +131,8 @@ func (s *Socket) Auth() bool {
 	err = s.WriteMessage(buffer)
 	//log.Println("write message", buffer)
 	if err != nil {
-		log.Println("auth error:", err)
+		//log.Println("auth error:", err)
+		plog(fmt.Sprintf("%s auth error: %s", s.uid, err))
 		return false
 	}
 	return true
@@ -135,27 +146,34 @@ func (s *Socket) Send() {
 	//	log.Println("write:", err)
 	//}
 
-	ticker := time.NewTicker(time.Second * 2)
-	defer ticker.Stop()
+	if sendInterval == 0 {
+		return
+	}
 
-	for {
-		select {
-		case _ = <-ticker.C:
-			buffer, err := formatSendMessage(s.uid, s.roomId)
-			err = s.WriteMessage(buffer)
-			//log.Println("write message", buffer)
-			if err != nil {
-				s.close()
-				log.Println("send error:", err)
-				return
+	go func() {
+
+		ticker := time.NewTicker(time.Second * time.Duration(sendInterval))
+		defer ticker.Stop()
+
+		for {
+			select {
+			case _ = <-ticker.C:
+				buffer, err := formatSendMessage(s.uid, s.roomId)
+				err = s.WriteMessage(buffer)
+				s.handler.PNum++
+				if err != nil {
+					s.close()
+					plog(fmt.Sprintf("%s send error: %s", s.uid, err))
+					return
+				}
 			}
 		}
-	}
+	}()
 }
 
 func (s *Socket) close() {
 	if s.outPool() {
-		log.Println("socket close:", s.uid)
+		plog(fmt.Sprintf("%s socket close", s.uid))
 		s.conn.Close()
 		s.outPool()
 	}
@@ -180,10 +198,14 @@ func (s *Socket) outPool() bool {
 }
 
 func (s *Socket) WriteMessage(buffer []byte) error {
-	log.Println("======lock=======")
+	plog(fmt.Sprintf("%s writeMessage lock", s.uid))
 	s.wLock.Lock()
-	defer s.wLock.Unlock()
+	defer func() {
+		plog(fmt.Sprintf("%s writeMessage unlock", s.uid))
+		s.wLock.Unlock()
+	}()
 
+	plog(fmt.Sprintf("%s writeMessage ==> %s", s.uid, buffer))
 	err := s.conn.WriteMessage(websocket.TextMessage, buffer)
 	return err
 }

@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"encoding/json"
+	"log"
 )
 
 type bodyMessage struct {
@@ -64,4 +65,10 @@ func formatHeartMessage() ([]byte, error) {
 	buffer, err := json.Marshal(buff)
 	//log.Println("formatHeartMessage: ", buffer)
 	return buffer, err
+}
+
+func plog(str string) {
+	if debug == 1 {
+		log.Print(str)
+	}
 }
