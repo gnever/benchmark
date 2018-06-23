@@ -6,7 +6,7 @@ import (
 
 type bodyMessage struct {
 	JsessId string `json:"jsessId"`
-	RoomId  int32  `json:"roomId"`
+	RoomId  int    `json:"roomId"`
 }
 type proto struct {
 	Ver  int32       `json:"ver"`
@@ -15,7 +15,7 @@ type proto struct {
 	Body bodyMessage `json:"body"`
 }
 
-func formatAuthMessage(uid string, roomId int32) ([]byte, error) {
+func formatAuthMessage(uid string, roomId int) ([]byte, error) {
 	msg := bodyMessage{
 		uid,
 		roomId,
@@ -33,7 +33,7 @@ func formatAuthMessage(uid string, roomId int32) ([]byte, error) {
 	return buffer, err
 }
 
-func formatSendMessage(uid string, roomId int32) ([]byte, error) {
+func formatSendMessage(uid string, roomId int) ([]byte, error) {
 	msg := bodyMessage{
 		uid,
 		roomId,
@@ -48,5 +48,20 @@ func formatSendMessage(uid string, roomId int32) ([]byte, error) {
 
 	buffer, err := json.Marshal(buff)
 	//log.Println("formatAuthMessage: ", buffer)
+	return buffer, err
+}
+
+func formatHeartMessage() ([]byte, error) {
+	msg := bodyMessage{}
+
+	buff := proto{
+		1,
+		2,
+		2,
+		msg,
+	}
+
+	buffer, err := json.Marshal(buff)
+	//log.Println("formatHeartMessage: ", buffer)
 	return buffer, err
 }
