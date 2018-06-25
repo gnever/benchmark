@@ -11,7 +11,7 @@ var (
 	host              string //127.0.0.1:8090
 	path              string //path
 	start             int
-	numClients        int
+	setNumClients     int
 	roomId            int
 	heartHeat         int
 	sendInterval      int
@@ -22,8 +22,13 @@ var (
 type Handler struct {
 	startTime time.Time
 	pool      *pool
-	RNum      int
-	PNum      int
+	//TODO 以下统计不是原子性的，在client数较多时会有误差。如果不考虑性能可以加上 sync.Mutex
+	RNum    int //收到消息数量
+	PNum    int //push消息数量
+	HNum    int //心跳数
+	AllPNum int // 总共push数量
+	AllRNum int //总共收到消息
+	AllHNum int //总共心跳数
 }
 
 type pool struct {
@@ -33,7 +38,7 @@ type pool struct {
 func init() {
 	flag.StringVar(&host, "h", "127.0.0.1:8090", "url")
 	flag.StringVar(&path, "path", "sub", "path")
-	flag.IntVar(&numClients, "m", 1, "Number of clients")
+	flag.IntVar(&setNumClients, "m", 1, "Number of clients")
 	flag.IntVar(&start, "s", 1, "start uid")
 	flag.IntVar(&debug, "debug", 0, "debug")
 	flag.IntVar(&roomId, "roomid", 123, "roomid")
@@ -50,7 +55,7 @@ func (h *Handler) Execute() {
 	pool := new(pool)
 
 	pool.sockets = make(map[int]*Socket)
-	for i := start; i < start+numClients; i++ {
+	for i := start; i < start+setNumClients; i++ {
 		s := new(Socket)
 		s.poolIndex = i
 		s.handler = h
@@ -89,14 +94,32 @@ func (h *Handler) PushNum() int {
 	return num
 }
 
+func (h *Handler) HeartBeatNum() int {
+	num := h.HNum
+	h.HNum = 0
+	return num
+}
+
 func (h *Handler) StatisticInterval() int {
 	return statisticInterval
 }
 
-func (h *Handler) NumClients() int {
-	return numClients
+func (h *Handler) SetNumClients() int {
+	return setNumClients
 }
 
 func (h *Handler) Uptime() time.Duration {
 	return time.Since(h.startTime)
+}
+
+func (h *Handler) AllPushNum() int {
+	return h.AllPNum
+}
+
+func (h *Handler) AllReceiveNum() int {
+	return h.AllRNum
+}
+
+func (h *Handler) AllHeartBeatNum() int {
+	return h.AllHNum
 }

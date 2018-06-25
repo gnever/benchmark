@@ -12,6 +12,8 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
+	log.Println("====START===")
+
 	h := new(websocket.Handler)
 	h.Execute()
 	defer h.Close()
@@ -23,12 +25,29 @@ func main() {
 		select {
 		case _ = <-ticker.C:
 			//num := h.PoolNum()
-			log.Printf("uptime: %s;set client num: %d; now client num: %d; receive message num: %d; push message num:%d; in %ds", h.Uptime(), h.NumClients(), h.PoolNum(), h.ReceiveNum(), h.PushNum(), stst)
+			log.Printf(
+				"uptime: %s;set client num: %d; now client num: %d; heartbeat num: %d; receive message num: %d; push message num:%d; in %ds",
+				h.Uptime(),
+				h.SetNumClients(),
+				h.PoolNum(),
+				h.HeartBeatNum(),
+				h.ReceiveNum(),
+				h.PushNum(),
+				stst)
 			//if num == 0 {
 			//	return
 			//}
 		case getSignal := <-interrupt:
 			log.Printf("out of %s", getSignal)
+			//TODO goroutine 没有优雅的退出，可以引入waitgroup实现
+			log.Println("====END===")
+			log.Printf(
+				"uptime: %s;set client num: %d; all heartbeat num: %d; all receive message num: %d; all push message num:%d",
+				h.Uptime(),
+				h.SetNumClients(),
+				h.AllHeartBeatNum(),
+				h.AllReceiveNum(),
+				h.AllPushNum())
 			return
 		}
 	}

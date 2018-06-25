@@ -84,6 +84,7 @@ func (s *Socket) onMessage() {
 
 				//log.Println(p)
 				s.handler.RNum += len(ptinfo)
+				s.handler.AllRNum += len(ptinfo)
 			case 8:
 				//OP_AUTH_REPLY
 
@@ -110,10 +111,13 @@ func (s *Socket) heartBeat() {
 
 				buffer, err := formatHeartMessage()
 				err = s.WriteMessage(buffer)
+				s.handler.HNum++
+				s.handler.AllHNum++
 				//log.Println("uid ping:", s.uid)
 				plog(fmt.Sprintf("%s ping:", s.uid))
 				if err != nil {
 					//log.Println("heart error", err)
+					plog(fmt.Sprintf("%s ping error %s", s.uid, err))
 					s.close()
 					//TODO 通知主进程异常
 					return
@@ -161,6 +165,7 @@ func (s *Socket) Send() {
 				buffer, err := formatSendMessage(s.uid, s.roomId)
 				err = s.WriteMessage(buffer)
 				s.handler.PNum++
+				s.handler.AllPNum++
 				if err != nil {
 					s.close()
 					plog(fmt.Sprintf("%s send error: %s", s.uid, err))
