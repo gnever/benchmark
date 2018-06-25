@@ -56,9 +56,11 @@ func (h *Handler) Execute() {
 		s.handler = h
 		pool.sockets[i] = s
 
-		s.Connect(strconv.Itoa(i), roomId)
-		s.Auth()
-		s.Send()
+		go func() {
+			s.Connect(strconv.Itoa(i), roomId)
+			s.Auth()
+			s.Send()
+		}()
 	}
 
 	h.pool = pool
