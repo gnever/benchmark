@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -50,7 +51,7 @@ func init() {
 	fmt.Printf("heartHeat: %ds; sendInterval: %ds;\n", heartHeat, sendInterval)
 }
 
-func (h *Handler) Execute() {
+func (h *Handler) Execute(waitgroup *sync.WaitGroup) {
 	h.startTime = time.Now()
 	pool := new(pool)
 
@@ -59,6 +60,7 @@ func (h *Handler) Execute() {
 		s := new(Socket)
 		s.poolIndex = i
 		s.handler = h
+		s.waitgroup = waitgroup
 		pool.sockets[i] = s
 
 		go func() {

@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"time"
 )
 
@@ -14,8 +15,10 @@ func main() {
 
 	log.Println("====START===")
 
+	var waitgroup sync.WaitGroup
+
 	h := new(websocket.Handler)
-	h.Execute()
+	h.Execute(&waitgroup)
 	defer h.Close()
 
 	stst := h.StatisticInterval()
@@ -40,6 +43,8 @@ func main() {
 		case getSignal := <-interrupt:
 			log.Printf("out of %s", getSignal)
 			//TODO goroutine 没有优雅的退出，可以引入waitgroup实现
+			h.Close()
+			waitgroup.Wait()
 			log.Println("====END===")
 			log.Printf(
 				"uptime: %s;set client num: %d; all heartbeat num: %d; all receive message num: %d; all push message num:%d",

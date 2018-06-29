@@ -19,9 +19,7 @@ type Socket struct {
 	conn      *websocket.Conn
 	handler   *Handler
 	wLock     *sync.Mutex
-
-	//为了保证所有 goroutine 都可以优雅退出，需要引入 WaitGroup。陪孩子挽回，暂时先不做...
-	//waitGroup *sync.WaitGroup
+	waitgroup *sync.WaitGroup
 }
 
 func (s *Socket) Connect(uid string, roomId int) bool {
@@ -39,6 +37,8 @@ func (s *Socket) Connect(uid string, roomId int) bool {
 	}
 
 	s.wLock = new(sync.Mutex)
+	log.Println("wg add")
+	s.waitgroup.Add(1)
 	s.conn = c
 	s.onMessage()
 	s.heartBeat()
@@ -52,6 +52,7 @@ func (s *Socket) onMessage() {
 			_, message, err := s.conn.ReadMessage()
 			if err != nil {
 				//log.Println("read:", err)
+				s.close()
 				plog(fmt.Sprintf("%s reade error:", s.uid, err))
 				return
 			}
@@ -179,6 +180,8 @@ func (s *Socket) Send() {
 func (s *Socket) close() {
 	if s.outPool() {
 		plog(fmt.Sprintf("%s socket close", s.uid))
+		log.Println("wg done")
+		s.waitgroup.Done()
 		s.conn.Close()
 		s.outPool()
 	}
