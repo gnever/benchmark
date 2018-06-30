@@ -37,7 +37,7 @@ func (s *Socket) Connect(uid string, roomId int) bool {
 	}
 
 	s.wLock = new(sync.Mutex)
-	log.Println("wg add")
+	//log.Println("wg add")
 	s.waitgroup.Add(1)
 	s.conn = c
 	s.onMessage()
@@ -104,7 +104,13 @@ func (s *Socket) heartBeat() {
 
 	go func() {
 		ticker := time.NewTicker(time.Second * time.Duration(heartHeat))
-		defer ticker.Stop()
+
+		defer func() {
+			ticker.Stop()
+			if err := recover(); err != nil {
+				return
+			}
+		}()
 
 		for {
 			select {
@@ -158,7 +164,13 @@ func (s *Socket) Send() {
 	go func() {
 
 		ticker := time.NewTicker(time.Second * time.Duration(sendInterval))
-		defer ticker.Stop()
+
+		defer func() {
+			ticker.Stop()
+			if err := recover(); err != nil {
+				return
+			}
+		}()
 
 		for {
 			select {
@@ -180,7 +192,7 @@ func (s *Socket) Send() {
 func (s *Socket) close() {
 	if s.outPool() {
 		plog(fmt.Sprintf("%s socket close", s.uid))
-		log.Println("wg done")
+		//log.Println("wg done")
 		s.waitgroup.Done()
 		s.conn.Close()
 		s.outPool()
