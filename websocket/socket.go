@@ -48,6 +48,7 @@ func (s *Socket) Connect(uid string, roomId int) bool {
 func (s *Socket) onMessage() {
 
 	go func() {
+
 		for {
 			_, message, err := s.conn.ReadMessage()
 			if err != nil {
