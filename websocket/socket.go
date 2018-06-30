@@ -104,13 +104,7 @@ func (s *Socket) heartBeat() {
 
 	go func() {
 		ticker := time.NewTicker(time.Second * time.Duration(heartHeat))
-
-		defer func() {
-			ticker.Stop()
-			if err := recover(); err != nil {
-				return
-			}
-		}()
+		defer ticker.Stop()
 
 		for {
 			select {
@@ -164,13 +158,7 @@ func (s *Socket) Send() {
 	go func() {
 
 		ticker := time.NewTicker(time.Second * time.Duration(sendInterval))
-
-		defer func() {
-			ticker.Stop()
-			if err := recover(); err != nil {
-				return
-			}
-		}()
+		defer ticker.Stop()
 
 		for {
 			select {

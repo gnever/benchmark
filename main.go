@@ -24,6 +24,7 @@ func main() {
 	stst := h.StatisticInterval()
 	ticker := time.NewTicker(time.Second * time.Duration(stst))
 	defer ticker.Stop()
+
 	for {
 		select {
 		case _ = <-ticker.C:

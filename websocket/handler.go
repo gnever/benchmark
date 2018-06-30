@@ -64,6 +64,11 @@ func (h *Handler) Execute(waitgroup *sync.WaitGroup) {
 		pool.sockets[i] = s
 
 		go func() {
+			defer func() {
+				if err := recover(); err != nil {
+					return
+				}
+			}()
 			s.Connect(strconv.Itoa(i), roomId)
 			s.Auth()
 			s.Send()
